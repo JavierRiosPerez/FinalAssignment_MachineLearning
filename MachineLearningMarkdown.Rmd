@@ -1,0 +1,121 @@
+---
+title: "Causer Machine Learning Assignment"
+author: "Javier Rios Perez"
+date: "12/17/2016"
+output: html_document
+---
+
+Coursera: Machine Learning - Assignment solution
+
+Loading the required R libraries 
+```{r}
+library(ggplot2)
+library(lattice)
+library(caret)
+library(RCurl)
+```
+
+Cleaning the data
+Here I will remove the empty, zero and NA columns becuase they are not useful
+for my analysis, and remove the all the factor columns but the classe variable.
+This is done in the training set.
+
+```{r echo = FALSE}
+#reading the training data
+training <- read.csv("pml-training.csv")
+testing <- read.csv("pml-testing.csv")
+
+############################################################
+# cleaning the data
+# subseting the training test to get: 
+# sub_training and sub_testing sets
+############################################################
+
+# cleaning the data - eliminating NA and zero colums as well as the factor cols that
+# my model is not interested in
+
+NA_cols <-  sapply(training, function(x){!any(is.na(x))})
+clean_training <- training[,NA_cols]
+
+ZERO_cols <- sapply(clean_training, function(x) {!any(x== "")})
+clean_training <- clean_training[,ZERO_cols]
+str(clean_training)
+
+#remvoong times and other factos
+clean_training <- clean_training[,-c(1:7)]
+
+```
+
+Creating a training teting sets from the original training set.
+
+```{r include = FALSE}
+# partitioning the clean_training database into 2 different ones
+# sub_training and sub_testing
+
+set.seed(1234)
+inTrain <- createDataPartition(y = clean_training$classe, p = 0.75, list = FALSE)
+
+sub_training <- clean_training[inTrain,]
+sub_testing <- clean_training[-inTrain,]
+
+```
+
+Building the rpart model
+
+```{r include = FALSE}
+
+modFit_rpart <- train(classe ~., method = "rpart", data = sub_training)
+predict_rpart <- predict(modFit_rpart, newdata = sub_testing)
+confMatrix_rpart <- confusionMatrix(predict_rpart, sub_testing$classe)
+
+
+```
+
+```{r}
+#rpart
+print(confMatrix_rpart)
+confMatrix_rpart_table <- as.matrix(confMatrix_rpart$table)
+heatmap(as.matrix(confMatrix_rpart$table),
+        scale = "column",
+        color = heat.colors(256),
+        Rowv = NA,
+        Colv = NA,
+        main = "Confusion Matrix - rpart method")
+```
+
+
+Building the rf model
+```{r include = FALSE}
+# rf
+
+  modFit_rf <- train(classe ~., method = "rf", data = sub_training)
+  predict_rf <- predict(modFit_rf, newdata = sub_testing)
+  confMatrix_rf <- confusionMatrix(predict_rf, sub_testing$classe)
+
+  
+```
+
+```{r} 
+  print(confMatrix_rf)
+  confMatrix_rf_table <- as.matrix(confMatrix_rf$table)
+  heatmap(as.matrix(confMatrix_rf$table),
+          scale = "column",
+          color = heat.colors(256),
+          Rowv = NA,
+          Colv = NA,
+          main = "Confusion Matrix - rf method")
+```
+
+Comparing results
+
+```{r}
+############################################################
+# Results
+############################################################
+
+par(mfrow = c(1,2))
+plot(confMatrix_rpart_table, main = "Confusion Matrix - rpart method")
+plot(confMatrix_rf_table, main = "Confusion Matrix - rf method")  
+  
+```
+
